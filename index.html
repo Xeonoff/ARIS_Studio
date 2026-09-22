@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ARIS EPC Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <!-- Unbounded — дисплейный (логотип/акценты), Manrope — UI, JetBrains Mono — ID и метрики -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="styles/app.css" />
+</head>
+
+<body>
+    <div class="app" id="app">
+
+        <header class="topbar" role="toolbar" aria-label="Главная панель">
+            <div class="brand">
+                <span class="brand__mark">EPC</span>
+                <span class="brand__name">ARIS&nbsp;Studio</span>
+                <input class="doc-name" id="doc-name" value="Новая модель" spellcheck="false"
+                    aria-label="Имя документа" />
+            </div>
+
+            <div class="tb-group" role="group" aria-label="История">
+                <button class="icon-btn" data-action="undo" data-i18n-title="tb.undo" disabled>
+                    <svg viewBox="0 0 16 16">
+                        <path d="M6 3 2.5 6.5 6 10M3 6.5h6a4 4 0 1 1 0 8H7" />
+                    </svg>
+                </button>
+                <button class="icon-btn" data-action="redo" data-i18n-title="tb.redo" disabled>
+                    <svg viewBox="0 0 16 16">
+                        <path d="M10 3l3.5 3.5L10 10M13 6.5H7a4 4 0 1 0 0 8h2" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="tb-group" role="group" aria-label="Вид">
+                <button class="icon-btn" data-action="zoom:out" data-i18n-title="tb.zoomOut"><svg viewBox="0 0 16 16">
+                        <path d="M3 8h10" />
+                    </svg></button>
+                <button class="zoom-readout" data-action="zoom:fit" data-i18n-title="tb.zoomFit"
+                    id="st-zoom">100%</button>
+                <button class="icon-btn" data-action="zoom:in" data-i18n-title="tb.zoomIn"><svg viewBox="0 0 16 16">
+                        <path d="M8 3v10M3 8h10" />
+                    </svg></button>
+                <button class="icon-btn is-active" data-action="grid:toggle" data-i18n-title="tb.grid"><svg
+                        viewBox="0 0 16 16">
+                        <path d="M3 1v14M8 1v14M13 1v14M1 3h14M1 8h14M1 13h14" />
+                    </svg></button>
+            </div>
+
+            <div class="tb-group" role="group" aria-label="Объекты">
+                <button class="icon-btn" data-action="group" data-i18n-title="tb.group"><svg viewBox="0 0 16 16">
+                        <rect x="1.5" y="1.5" width="8" height="8" rx="1.5" />
+                        <rect x="6.5" y="6.5" width="8" height="8" rx="1.5" />
+                    </svg></button>
+                <button class="icon-btn" data-action="ungroup" data-i18n-title="tb.ungroup">
+                    <svg viewBox="0 0 16 16">
+                        <rect x="1.5" y="1.5" width="8" height="8" rx="1.5" />
+                        <rect x="6.5" y="6.5" width="8" height="8" rx="1.5" />
+                        <path d="M2.5 13.5 13.5 2.5" />
+                    </svg>
+                </button>
+                <button class="icon-btn" data-action="z:front" data-i18n-title="tb.front"><svg viewBox="0 0 16 16">
+                        <path d="M8 10V2M5 5l3-3 3 3M2 13h12" />
+                    </svg></button>
+                <button class="icon-btn" data-action="z:back" data-i18n-title="tb.back"><svg viewBox="0 0 16 16">
+                        <path d="M8 6v8M5 11l3 3 3-3M2 3h12" />
+                    </svg></button>
+                <button class="icon-btn danger" data-action="delete" data-i18n-title="tb.delete"><svg
+                        viewBox="0 0 16 16">
+                        <path d="M2.5 4h11M6.5 4V2.5h3V4M4 4l.7 9.5h6.6L12 4M6.5 7v4M9.5 7v4" />
+                    </svg></button>
+            </div>
+
+            <div class="tb-spacer"></div>
+
+            <button class="pill-btn" data-action="validate:toggle" id="btn-validate">
+                <svg viewBox="0 0 16 16">
+                    <path d="M8 1.5 14.5 13h-13L8 1.5ZM8 6v3.2M8 11.4v.2" />
+                </svg>
+                <span data-i18n="tb.validate">Проверка</span>
+                <span class="badge" id="st-issues" hidden>0</span>
+            </button>
+
+            <div class="seg" role="group" aria-label="Язык">
+                <button class="seg__btn is-active" data-lang="ru">RU</button>
+                <button class="seg__btn" data-lang="en">EN</button>
+            </div>
+
+            <button class="icon-btn" data-action="theme:toggle" data-i18n-title="tb.theme" id="btn-theme">
+                <svg viewBox="0 0 16 16">
+                    <path d="M8 1a7 7 0 1 0 7 7A5.5 5.5 0 0 1 8 1Z" />
+                </svg>
+            </button>
+
+            <button class="icon-btn" data-action="import" data-i18n-title="tb.import">
+                <svg viewBox="0 0 16 16">
+                    <path d="M8 10V2M5 5l3-3 3 3M2 13.5h12" />
+                </svg>
+            </button>
+
+            <div class="dropdown" id="export-dd">
+                <button class="btn btn--accent" data-action="export:open">
+                    <svg viewBox="0 0 16 16">
+                        <path d="M8 2v8M5 7l3 3 3-3M2 13.5h12" />
+                    </svg>
+                    <span data-i18n="tb.export">Экспорт</span>
+                </button>
+                <div class="dropdown__menu" role="menu" hidden>
+                    <button role="menuitem" data-action="export:json">JSON <em data-i18n="exp.json.hint">состояние
+                            модели</em></button>
+                    <button role="menuitem" data-action="export:svg">SVG <em
+                            data-i18n="exp.svg.hint">вектор</em></button>
+                    <button role="menuitem" data-action="export:png">PNG <em data-i18n="exp.png.hint">растр
+                            ×2</em></button>
+                    <button role="menuitem" data-action="export:xml">XML <em data-i18n="exp.xml.hint">ARIS/BPMN
+                            subset</em></button>
+                </div>
+            </div>
+        </header>
+
+        <main class="workspace">
+
+            <aside class="panel panel--toolbox" id="toolbox" aria-label="Палитра ARIS">
+                <h2 class="panel__title" data-i18n="tbx.title">Элементы EPC</h2>
+                <div class="palette" id="palette"></div>
+                <p class="panel__hint" data-i18n="tbx.hint">Перетащите элемент на холст или нажмите клавиши 1–6.</p>
+            </aside>
+
+            <section class="stage" id="stage" aria-label="Холст">
+                <div class="stage__canvas" id="canvas" tabindex="0"></div>
+
+                <div class="dock" id="val-dock" hidden>
+                    <header class="dock__head">
+                        <span data-i18n="val.title">Проверка нотации</span>
+                        <button class="icon-btn" data-action="validate:toggle">✕</button>
+                    </header>
+                    <ul class="dock__list" id="val-list"></ul>
+                </div>
+
+                <div class="toasts" id="toasts" aria-live="polite"></div>
+            </section>
+
+            <aside class="panel panel--inspector" id="inspector" aria-label="Свойства">
+                <h2 class="panel__title" data-i18n="ins.title">Свойства</h2>
+                <div class="ins-body" id="ins-body"></div>
+            </aside>
+        </main>
+
+        <footer class="statusbar">
+            <span class="statusbar__cell mono" id="st-pos">x: 0 · y: 0</span>
+            <span class="statusbar__cell" id="st-sel"></span>
+            <span class="statusbar__cell statusbar__cell--right" data-i18n="st.ready">Готово</span>
+        </footer>
+    </div>
+
+    <input type="file" id="file-input" accept=".json" hidden />
+    <script type="module" src="src/main.js"></script>
+</body>
+
+</html>
