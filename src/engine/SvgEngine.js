@@ -20,13 +20,15 @@ export class SvgEngine extends GraphEngine {
     #palette = null;
     #gridVisible = true;
     #snapping = true;
-    #drag = null;                 // активное перетаскивание узла
-    #link = null;                 // активное создание связи
+    #drag = null;
+    #link = null;
     #pan = null;
     #marquee = null;
     #spaceDown = false;
     #measure = document.createElement('canvas').getContext('2d'); // для переноса текста
     #selected = new Set();
+    #selEdge = null;
+    #vdrag = null;
 
     mount(container) {
         container.innerHTML = '';
@@ -231,15 +233,21 @@ export class SvgEngine extends GraphEngine {
         const e = this.#edges.get(id), g = this.#edgeEls.get(id);
         const s = this.#nodes.get(e.source), t = this.#nodes.get(e.target);
         if (!s || !t) return;
-        const p1 = this.#anchor(s, t.x + t.w / 2, t.y + t.h / 2);
-        const p2 = this.#anchor(t, s.x + s.w / 2, s.y + s.h / 2);
-        const d = `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`;
+        const vs = e.vertices ?? [];
+        const aim1 = vs[0] ?? { x: t.x + t.w / 2, y: t.y + t.h / 2 };
+        const aim2 = vs[vs.length - 1] ?? { x: s.x + s.w / 2, y: s.y + s.h / 2 };
+        const p1 = this.#anchor(s, aim1.x, aim1.y);
+        const p2 = this.#anchor(t, aim2.x, aim2.y);
+        const pts = [p1, ...vs, p2];
+        const d = pts.map((p, i) => `${i ? 'L' : 'M'} ${p.x} ${p.y}`).join(' ');
         g.querySelector('.line').setAttribute('d', d);
         g.querySelector('.hit').setAttribute('d', d);
+        const mid = this.#polyMid(pts);
         const lbl = g.querySelector('.elabel');
         lbl.textContent = e.label || '';
-        lbl.setAttribute('x', (p1.x + p2.x) / 2);
-        lbl.setAttribute('y', (p1.y + p2.y) / 2 - 6);
+        lbl.setAttribute('x', mid.x);
+        lbl.setAttribute('y', mid.y - 6);
+        if (id === this.#selEdge) this.#drawEdgeHandles();
     }
     // #paintEdge(id) {
     //     const e = this.#edges.get(id), g = this.#edgeEls.get(id);
@@ -256,8 +264,10 @@ export class SvgEngine extends GraphEngine {
 
     setSelected(ids) {
         this.#selected = new Set(ids);
+        this.#selEdge = ids.find((id) => this.#edges.has(id)) ?? null;
         this.svg.querySelectorAll('.selected').forEach((el) => el.classList.remove('selected'));
         ids.forEach((id) => { (this.#nodeEls.get(id) ?? this.#edgeEls.get(id))?.classList.add('selected'); });
+        this.#drawEdgeHandles();
     }
     bringToFront(id) { const g = this.#nodeEls.get(id); if (g) this.gNodes.appendChild(g); }
     sendToBack(id) { const g = this.#nodeEls.get(id); if (g) this.gNodes.prepend(g); }
@@ -292,7 +302,15 @@ export class SvgEngine extends GraphEngine {
                 return;
             }
             if (ev.button !== 0) return;
-
+            const vh = ev.target.closest('.vhandle');
+            if (vh) {
+                ev.preventDefault();
+                const id = vh.dataset.edge;
+                const e = this.#edges.get(id);
+                this.#vdrag = { id, index: +vh.dataset.index, from: structuredClone(e.vertices ?? []), moved: false };
+                svg.setPointerCapture(ev.pointerId);
+                return;
+            }
             const port = ev.target.closest('.port');
             const nodeG = ev.target.closest('.node');
             const edgeG = ev.target.closest('.edge');
@@ -355,10 +373,45 @@ export class SvgEngine extends GraphEngine {
             this.gFx.appendChild(this.#marquee.rect);
             svg.setPointerCapture(ev.pointerId);
         });
-
+        svg.addEventListener('dblclick', (ev) => {
+            ev.preventDefault();
+            const vh = ev.target.closest('.vhandle');
+            if (vh) { // двойной клик по ручке — удалить излом
+                const id = vh.dataset.edge;
+                const e = this.#edges.get(id);
+                const from = structuredClone(e.vertices ?? []);
+                const to = from.filter((_, i) => i !== +vh.dataset.index);
+                this.emit('edge:vertices', { id, from, to });
+                return;
+            }
+            const edgeG = ev.target.closest('.edge');
+            if (edgeG) { // двойной клик по линии — добавить излом
+                const id = edgeG.dataset.id;
+                const e = this.#edges.get(id);
+                const w = this.screenToWorld(ev.clientX, ev.clientY);
+                const from = structuredClone(e.vertices ?? []);
+                const idx = this.#insertIndex(id, w);
+                const snap = (v) => (this.#snapping ? Math.round(v / GRID) * GRID : v);
+                const to = [...from.slice(0, idx), { x: snap(w.x), y: snap(w.y) }, ...from.slice(idx)];
+                this.emit('select', { ids: [id], edge: true });
+                this.emit('edge:vertices', { id, from, to });
+            }
+        });
         svg.addEventListener('pointermove', (ev) => {
-            if ((this.#drag || this.#link || this.#marquee || this.#pan) && ev.buttons === 0) {
+
+            if ((this.#drag || this.#link || this.#marquee || this.#pan || this.#vdrag) && ev.buttons === 0) {
                 this.#endInteraction(ev);
+            }
+            if (this.#vdrag) {
+                const vd = this.#vdrag;
+                const w = this.screenToWorld(ev.clientX, ev.clientY);
+                let nx = w.x, ny = w.y;
+                if (this.#snapping) { nx = Math.round(nx / GRID) * GRID; ny = Math.round(ny / GRID) * GRID; }
+                const e = this.#edges.get(vd.id);
+                e.vertices = (e.vertices ?? []).map((v, i) => (i === vd.index ? { x: nx, y: ny } : v));
+                this.#layoutEdge(vd.id);
+                vd.moved = true;
+                return;
             }
             const w = this.screenToWorld(ev.clientX, ev.clientY);
             this.emit('pointer', w);
@@ -435,7 +488,12 @@ export class SvgEngine extends GraphEngine {
                 else this.emit('blank');
             }
         }
-
+        if (this.#vdrag) {
+            const vd = this.#vdrag; this.#vdrag = null;
+            if (!cancel && vd.moved) {
+                this.emit('edge:vertices', { id: vd.id, from: vd.from, to: structuredClone(this.#edges.get(vd.id).vertices ?? []) });
+            }
+        }
         if (this.#drag) {
             const d = this.#drag; this.#drag = null; this.#drawGuides(null);
             if (!cancel) {
@@ -570,6 +628,65 @@ export class SvgEngine extends GraphEngine {
         line.setAttribute('stroke', color);
         line.setAttribute('marker-end',
             e.kind === 'control' ? 'url(#arrow)' : e.kind === 'resource' ? 'url(#arrowRes)' : 'none');
+    }
+
+    #drawEdgeHandles() {
+        this.gFx.querySelectorAll('.vhandle').forEach((el) => el.remove());
+        if (!this.#selEdge) return;
+        const e = this.#edges.get(this.#selEdge);
+        if (!e) return;
+        const r = Math.max(4, 5 / this.#vp.z);
+        (e.vertices ?? []).forEach((v, i) => {
+            this.gFx.appendChild(this.#el('circle', {
+                class: 'vhandle', cx: v.x, cy: v.y, r,
+                'data-edge': e.id, 'data-index': i,
+            }));
+        });
+    }
+
+    /** Точка на середине ломаной (по суммарной длине) — для подписи. */
+    #polyMid(pts) {
+        const segs = [];
+        let total = 0;
+        for (let i = 1; i < pts.length; i++) {
+            const len = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+            segs.push(len); total += len;
+        }
+        let half = total / 2;
+        for (let i = 1; i < pts.length; i++) {
+            if (half <= segs[i - 1]) {
+                const k = segs[i - 1] ? half / segs[i - 1] : 0;
+                return {
+                    x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * k,
+                    y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * k
+                };
+            }
+            half -= segs[i - 1];
+        }
+        return pts[0];
+    }
+
+    #insertIndex(id, p) {
+        const e = this.#edges.get(id);
+        const s = this.#nodes.get(e.source), t = this.#nodes.get(e.target);
+        const vs = e.vertices ?? [];
+        const aim1 = vs[0] ?? { x: t.x + t.w / 2, y: t.y + t.h / 2 };
+        const aim2 = vs[vs.length - 1] ?? { x: s.x + s.w / 2, y: s.y + s.h / 2 };
+        const pts = [this.#anchor(s, aim1.x, aim1.y), ...vs, this.#anchor(t, aim2.x, aim2.y)];
+        let best = 0, bestD = Infinity;
+        for (let i = 0; i < pts.length - 1; i++) {
+            const d = this.#distToSeg(p, pts[i], pts[i + 1]);
+            if (d < bestD) { bestD = d; best = i; }
+        }
+        return best; // вставка в vertices по индексу сегмента
+    }
+
+    #distToSeg(p, a, b) {
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const l2 = dx * dx + dy * dy;
+        let t = l2 ? ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2 : 0;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
     }
 
     markEdgeInvalid(id, bad) {

@@ -44,7 +44,7 @@ const DICT = {
         'val.resourceSource': 'Источник ресурсной связи должен быть орг. единицей, ролью или сотрудником.',
         'tb.ungroup': 'Разгруппировать',
         'toast.groupNeed': 'Выделите не менее двух элементов',
-        'tbx.hint': 'Перетащите элемент на холст (клавиши 1–9 и 0). Рамка на пустом месте выделяет область, Shift — добавляет к выделению. Панорама: средняя кнопка мыши или Space + мышь.',
+        'tbx.hint': 'Перетащите элемент на холст (клавиши 1–9 и 0). Рамка на пустом месте выделяет область, Shift — добавляет к выделению. Панорама: средняя кнопка мыши или Space + мышь. Двойной клик по связи добавляет излом, по точке излома — удаляет его.',
     },
     en: {
         'tb.undo': 'Undo (Ctrl+Z)', 'tb.redo': 'Redo (Ctrl+Y)',
@@ -89,7 +89,7 @@ const DICT = {
         'val.resourceSource': 'A resource link must originate from an org unit, role or person.',
         'tb.ungroup': 'Ungroup',
         'toast.groupNeed': 'Select at least two elements',
-        'tbx.hint': 'Drag an element onto the canvas (keys 1–9 and 0). Drag on empty space for area selection, Shift adds to selection. Pan: middle mouse button or Space + drag.',
+        'tbx.hint': 'Drag an element onto the canvas (keys 1–9 and 0). Drag on empty space for area selection, Shift adds to selection. Pan: middle mouse button or Space + drag. Double-click a connector to add a bend; double-click a bend handle to remove it.',
     },
 };
 

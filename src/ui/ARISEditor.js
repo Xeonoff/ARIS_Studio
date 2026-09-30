@@ -95,7 +95,12 @@ export class ARISEditor {
                 undo: () => this.store.removeEdge(edge.id),
             });
         });
-
+        engine.on('edge:vertices', ({ id, from, to }) => {
+            const same = from.length === to.length && from.every((v, i) => v.x === to[i].x && v.y === to[i].y);
+            if (same) return;
+            const apply = (vs) => this.store.updateEdge(id, { vertices: vs.map((v) => ({ ...v })) });
+            this.history.execute({ do: () => apply(to), undo: () => apply(from) });
+        });
         const canvas = this.els.canvas;
         canvas.addEventListener('dragover', (ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'copy'; });
         canvas.addEventListener('drop', (ev) => {

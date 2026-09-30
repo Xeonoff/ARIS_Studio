@@ -1028,3 +1028,14 @@ select {
     -webkit-user-select: none;
     pointer-events: none;
 }
+
+.vhandle {
+    fill: var(--bg-panel);
+    stroke: var(--accent);
+    stroke-width: 2;
+    cursor: move;
+}
+
+.vhandle:hover {
+    fill: var(--accent);
+}
