@@ -6,7 +6,7 @@ const esc = (s) => String(s ?? '').replace(/[<>&"']/g,
 /** Экспорт/импорт. Строит артефакты напрямую из модели, не зависит от движка. */
 export class Exporter {
   constructor(store, getPalette) { this.store = store; this.getPalette = getPalette; }
-
+  #measure = document.createElement('canvas').getContext('2d');
   /* ── 1) JSON: внутреннее состояние ── */
   downloadJSON() {
     this.#download(
@@ -60,8 +60,8 @@ export class Exporter {
         ? `<text x="${n.x + n.w / 2}" y="${n.y + n.h / 2}" text-anchor="middle" dominant-baseline="central"
          font-family="Manrope, sans-serif" font-weight="800" font-size="${n.h * .42}" fill="${p.stroke}">${OPERATOR_GLYPH[n.type]}</text>` : '';
       const label = isOperator(n.type) ? '' :
-        `<text x="${n.x + n.w / 2}" y="${ly}" text-anchor="middle" dominant-baseline="central"
-       font-family="Manrope, sans-serif" font-weight="700" font-size="12" fill="${p.ink}">${esc(n.label)}</text>`;
+        `<text text-anchor="middle" font-family="Manrope, sans-serif" font-weight="700"
+     font-size="12" fill="${p.ink}">${this.#wrappedLabel(n)}</text>`;
       return `<g><path d="${shapePath(n.type, n.w, n.h, n.style ?? {})}" transform="translate(${n.x} ${n.y})"
     fill="${fill}" stroke="${p.stroke}" stroke-width="1.5"/>${bar}${glyph}${label}</g>`;
     }).join('\n  ');
@@ -133,11 +133,36 @@ ${d.edges.map((e) => `    <flow id="${esc(e.id)}" sourceRef="${esc(e.source)}" t
     this.#download(xml, `${this.#fname()}.xml`, 'application/xml');
   }
 
-  #fname() { return (this.store.doc.meta.name || 'epc-model').replace(/\s+/g, '_'); }
+  #fname() {
+    const raw = this.store.doc.meta.name || 'epc-model';
+    return raw.replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '_').slice(0, 80) || 'epc-model';
+  }
   #download(text, name, mime) { this.#downloadBlob(new Blob([text], { type: mime }), name); }
   #downloadBlob(blob, name) {
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: name });
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+  #wrappedLabel(n) {
+    if (isOperator(n.type) || !n.label) return '';
+    const p = this.getPalette().nodes[n.type];
+    this.#measure.font = '700 12px Manrope, sans-serif';
+    const maxW = n.w * (n.type === 'event' || n.type === 'vac' ? 0.62 : 0.82);
+    const words = String(n.label).split(/\s+/);
+    const lines = [];
+    let line = '';
+    for (const w of words) {
+      const probe = line ? `${line} ${w}` : w;
+      if (this.#measure.measureText(probe).width > maxW && line) { lines.push(line); line = w; }
+      else line = probe;
+    }
+    if (line) lines.push(line);
+    const shown = lines.slice(0, 3);
+    if (lines.length > 3) shown[2] = shown[2].slice(0, -1) + '…';
+    const def = SHAPE_DEFS[n.type] ?? {};
+    const cy = (def.labelCy ?? 0.5) * n.h - ((shown.length - 1) * 14) / 2;
+    return shown.map((ln, i) =>
+      `<tspan x="${n.x + n.w / 2}" y="${n.y + cy + i * 14}" dominant-baseline="central">${esc(ln)}</tspan>`
+    ).join('');
   }
 }

@@ -51,6 +51,7 @@ export class ARISEditor {
         store.on('edge:update', ({ id, patch }) => engine.updateEdge(id, patch));
         store.on('edge:remove', (id) => engine.removeEdge(id));
         store.on('load', (doc) => {
+            this.els.docName.value = doc.meta.name;
             engine.clear();
             doc.nodes.forEach((n) => engine.addNode(n));
             doc.edges.forEach((e) => engine.addEdge(e));
@@ -108,18 +109,18 @@ export class ARISEditor {
             const type = ev.dataTransfer.getData('application/x-aris-shape');
             if (!type) return;
             const p = engine.screenToWorld(ev.clientX, ev.clientY);
-            this.#spawnNode(type, p.x, p.y);
+            this.#spawnNode(type, p.x, p.y, ev.altKey ? 1 : 20);
         });
     }
 
-    #spawnNode(type, wx, wy) {
+    #spawnNode(type, wx, wy, step = 20) {
         const def = SHAPE_DEFS[type];
         const node = {
             id: uid(def.prefix), type,
             label: this.i18n.t(def.labelKey),
             description: '',
-            x: Math.round((wx - def.w / 2) / 20) * 20,
-            y: Math.round((wy - def.h / 2) / 20) * 20,
+            x: Math.round((wx - def.w / 2) / 20) * step,
+            y: Math.round((wy - def.h / 2) / 20) * step,
             w: def.w, h: def.h,
             z: this.store.maxZ() + 1,
             locked: false, group: null, style: {}, attrs: {},
@@ -180,7 +181,9 @@ export class ARISEditor {
             const dd = this.els.exportMenu;
             if (!ev.target.closest('#export-dd')) dd.hidden = true;
         });
-        this.els.docName.addEventListener('change', () => { this.store.doc.meta.name = this.els.docName.value; });
+        this.els.docName.addEventListener('input', () => {
+            this.store.doc.meta.name = this.els.docName.value;
+        });
         document.querySelectorAll('[data-lang]').forEach((b) =>
             b.addEventListener('click', () => this.#setLang(b.dataset.lang)));
         this.history.on('change', (s) => {

@@ -391,7 +391,8 @@ export class SvgEngine extends GraphEngine {
                 const w = this.screenToWorld(ev.clientX, ev.clientY);
                 const from = structuredClone(e.vertices ?? []);
                 const idx = this.#insertIndex(id, w);
-                const snap = (v) => (this.#snapping ? Math.round(v / GRID) * GRID : v);
+                const snapOn = this.#snapping && !ev.altKey;
+                const snap = (v) => (snapOn ? Math.round(v / GRID) * GRID : v);
                 const to = [...from.slice(0, idx), { x: snap(w.x), y: snap(w.y) }, ...from.slice(idx)];
                 this.emit('select', { ids: [id], edge: true });
                 this.emit('edge:vertices', { id, from, to });
@@ -406,7 +407,7 @@ export class SvgEngine extends GraphEngine {
                 const vd = this.#vdrag;
                 const w = this.screenToWorld(ev.clientX, ev.clientY);
                 let nx = w.x, ny = w.y;
-                if (this.#snapping) { nx = Math.round(nx / GRID) * GRID; ny = Math.round(ny / GRID) * GRID; }
+                if (this.#snapping && !ev.altKey) { nx = Math.round(nx / GRID) * GRID; ny = Math.round(ny / GRID) * GRID; }
                 const e = this.#edges.get(vd.id);
                 e.vertices = (e.vertices ?? []).map((v, i) => (i === vd.index ? { x: nx, y: ny } : v));
                 this.#layoutEdge(vd.id);
@@ -430,10 +431,13 @@ export class SvgEngine extends GraphEngine {
             if (this.#drag) {
                 const d = this.#drag, n = this.#nodes.get(d.id);
                 let nx = d.ox + (w.x - d.sx), ny = d.oy + (w.y - d.sy);
-                const g = this.#smartGuides(d.id, nx, ny);
-                nx = g.x; ny = g.y; this.#drawGuides(g);
-                if (this.#snapping && !g.snappedX) nx = Math.round(nx / GRID) * GRID;
-                if (this.#snapping && !g.snappedY) ny = Math.round(ny / GRID) * GRID;
+                const free = ev.altKey;
+                const g = free
+                    ? { x: nx, y: ny, snappedX: false, snappedY: false }
+                    : this.#smartGuides(d.id, nx, ny);
+                nx = g.x; ny = g.y; this.#drawGuides(free ? null : g);
+                if (this.#snapping && !free && !g.snappedX) nx = Math.round(nx / GRID) * GRID;
+                if (this.#snapping && !free && !g.snappedY) ny = Math.round(ny / GRID) * GRID;
                 if (Math.abs(nx - d.ox) > 1 || Math.abs(ny - d.oy) > 1) d.moved = true;
                 n.x = nx; n.y = ny;
                 const movedIds = new Set([d.id]);
